@@ -136,3 +136,39 @@ excalidraw-room/.tern-port
 
 excalidraw-room/.DS_Store
 excalidraw-room/dist
+
+# compiled output
+excalidraw-storage-backend/dist
+excalidraw-storage-backend/node_modules
+
+# Logs
+excalidraw-storage-backend/logs
+excalidraw-storage-backend/*.log
+excalidraw-storage-backend/npm-debug.log*
+excalidraw-storage-backend/pnpm-debug.log*
+excalidraw-storage-backend/yarn-debug.log*
+excalidraw-storage-backend/yarn-error.log*
+excalidraw-storage-backend/lerna-debug.log*
+
+# OS
+excalidraw-storage-backend/.DS_Store
+
+# Tests
+excalidraw-storage-backend/coverage
+excalidraw-storage-backend/.nyc_output
+
+# IDEs and editors
+excalidraw-storage-backend/.idea
+excalidraw-storage-backend/.project
+excalidraw-storage-backend/.classpath
+excalidraw-storage-backend/.c9/
+excalidraw-storage-backend/*.launch
+excalidraw-storage-backend/.settings/
+excalidraw-storage-backend/*.sublime-workspace
+
+# IDE - VSCode
+excalidraw-storage-backend/.vscode/*
+excalidraw-storage-backend/!.vscode/settings.json
+excalidraw-storage-backend/!.vscode/tasks.json
+excalidraw-storage-backend/!.vscode/launch.json
+excalidraw-storage-backend/!.vscode/extensions.json

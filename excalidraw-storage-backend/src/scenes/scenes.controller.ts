@@ -18,9 +18,7 @@ export class ScenesController {
 
   @Post("save")
   @UseInterceptors(FileInterceptor("image"))
-  async savePng(
-    @UploadedFile() imageFile: Express.Multer.File,
-  ) {
+  async savePng(@UploadedFile() imageFile: Express.Multer.File) {
     // Generate numeric ID for the scene
     const nanoid = customAlphabet("0123456789", 16);
     const id = nanoid();
@@ -36,12 +34,27 @@ export class ScenesController {
         throw new InternalServerErrorException("No PNG file provided");
       }
 
-      // 3. Write the uploaded PNG to disk
-      const uploadedFilePath = join(exportDir, `scene-${id}.png`);
+      // 3. Generate a timestamped filename
+      //    e.g. "scene-<id>-2025-01-21_08-33-59.png"
+      const now = new Date();
+      const dateStr = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+      ].join("-");
+      const timeStr = [
+        String(now.getHours()).padStart(2, "0"),
+        String(now.getMinutes()).padStart(2, "0"),
+        String(now.getSeconds()).padStart(2, "0"),
+      ].join("-");
+      const fileName = `scene-${id}-${dateStr}_${timeStr}.png`;
+
+      // 4. Write the uploaded PNG to disk
+      const uploadedFilePath = join(exportDir, fileName);
       await writeFile(uploadedFilePath, imageFile.buffer);
       this.logger.log(`User-uploaded PNG saved at ${uploadedFilePath}`);
 
-      // 4. Return success response
+      // 5. Return success response
       return {
         id,
         message: "PNG saved successfully",

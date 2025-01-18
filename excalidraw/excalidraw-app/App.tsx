@@ -1,3 +1,4 @@
+import { exportToBlob } from "../packages/utils/export"; // Adjust the import path
 import polyfill from "../packages/excalidraw/polyfill";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trackEvent } from "../packages/excalidraw/analytics";
@@ -356,7 +357,78 @@ const ExcalidrawWrapper = () => {
 
   const [excalidrawAPI, excalidrawRefCallback] =
     useCallbackRefState<ExcalidrawImperativeAPI>();
+const exportAndSendImage = async (
+  elements: readonly OrderedExcalidrawElement[],
+  appState: AppState,
+  files: BinaryFiles
+) => {
+  try {
+    // Export the canvas to a Blob (PNG image)
+    const blob = await exportToBlob({
+      elements,
+      appState,
+      files,
+      mimeType: "image/png", // Specify the image format
+      quality: 0.8, // Adjust quality for JPEG if needed
+    });
 
+    if (!blob) {
+      throw new Error("Failed to export the canvas as a Blob");
+    }
+
+    // Create FormData to send the Blob
+    const formData = new FormData();
+    formData.append("image", blob, "exported-image.png"); // Append the Blob with a file name
+    formData.append("elements", JSON.stringify(elements));
+    formData.append("appState", JSON.stringify(appState));
+    formData.append("files", JSON.stringify(files || {}));
+
+    // Debugging: Log FormData keys to ensure correctness
+    console.log("FormData keys:", Array.from(formData.keys()));
+
+    // Send the FormData to the server
+    const response = await fetch("http://localhost:8080/api/v2/scenes/save", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      console.error("Server error:", errorMessage);
+      throw new Error("Failed to send the exported image to the server");
+    }
+
+    console.log("Image and scene data successfully uploaded to the server.");
+  } catch (error) {
+    console.error("Error exporting and sending image:", error);
+  }
+};
+
+const debouncedExportAndSendImage = debounce(exportAndSendImage, 2000); // 1-second debounce
+  // const debouncedSaveToServer = debounce(
+  //   async (
+  //     elements: readonly OrderedExcalidrawElement[],
+  //     appState: AppState,
+  //     files: BinaryFiles,
+  //   ) => {
+  //     try {
+  //       const response = await fetch("http://localhost:8080/api/v2/scenes/save", {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //         body: JSON.stringify({ elements, appState, files }),
+  //       });
+
+  //       if (!response.ok) {
+  //         throw new Error("Failed to save data to the server");
+  //       }
+  //     } catch (error) {
+  //       console.error("Error sending data to the server:", error);
+  //     }
+  //   },
+  //   1000, // 30-second debounce
+  // );
   const [, setShareDialogState] = useAtom(shareDialogStateAtom);
   const [collabAPI] = useAtom(collabAPIAtom);
   const [isCollaborating] = useAtomWithInitialValue(isCollaboratingAtom, () => {
@@ -616,6 +688,10 @@ const ExcalidrawWrapper = () => {
     if (collabAPI?.isCollaborating()) {
       collabAPI.syncElements(elements);
     }
+
+    // debouncedSaveToServer(elements, appState, files);
+      const nonDeleted = elements.filter((el) => !el.isDeleted);
+      debouncedExportAndSendImage(nonDeleted, appState, files);
 
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time

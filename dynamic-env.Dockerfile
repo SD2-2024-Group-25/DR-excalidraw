@@ -2,22 +2,31 @@ FROM node:18 AS build
 
 WORKDIR /opt/node_app
 
-COPY package.json yarn.lock ./
+# Copy necessary files for dependency installation
+COPY excalidraw/package.json excalidraw/yarn.lock ./
+
 RUN yarn --ignore-optional --network-timeout 600000
 
 ARG NODE_ENV=production
 
-COPY . .
+# Copy the rest of the application code
+COPY excalidraw/ .
+
+# Replace `import.meta.env` with `window._env_`
 RUN sed -i 's/import.meta.env/window._env_/g' $(grep 'import.meta.env' -R -l --include "*.ts" --include "*.tsx" --exclude-dir node_modules .)
+
+# Build the application
 RUN yarn build:app:docker
 
 FROM nginx:1.21-alpine
 
-ENV VITE_APP_BACKEND_V2_GET_URL=https://json.excalidraw.com/api/v2/
-ENV VITE_APP_BACKEND_V2_POST_URL=https://json.excalidraw.com/api/v2/post/
-
+# Copy built files to the NGINX server directory
 COPY --from=build /opt/node_app/build /usr/share/nginx/html
-COPY launcher.py /
+
+# Copy the launcher script
+COPY excalidraw/launcher.py /
+
+HEALTHCHECK CMD wget -q -O /dev/null http://localhost || exit 1
 
 EXPOSE 80
 

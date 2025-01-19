@@ -9,9 +9,6 @@ RUN yarn install --ignore-optional --network-timeout 600000
 # Copy the application source code
 COPY excalidraw/ .
 
-# Install Rollup native dependency
-RUN yarn add -D @rollup/rollup-linux-x64-gnu
-
 # Replace import.meta.env with window._env_
 RUN sed -i 's/import.meta.env/window._env_/g' $(grep 'import.meta.env' -R -l --include "*.ts" --include "*.tsx" --exclude-dir node_modules .)
 

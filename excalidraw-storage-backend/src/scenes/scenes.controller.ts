@@ -18,7 +18,10 @@ export class ScenesController {
 
   @Post("save")
   @UseInterceptors(FileInterceptor("image"))
-  async savePng(@UploadedFile() imageFile: Express.Multer.File) {
+  async savePng(
+    @UploadedFile() imageFile: Express.Multer.File,
+    @Body("username") username: string,
+  ) {
     // Generate numeric ID for the scene
     const nanoid = customAlphabet("0123456789", 16);
     const id = nanoid();
@@ -34,8 +37,13 @@ export class ScenesController {
         throw new InternalServerErrorException("No PNG file provided");
       }
 
-      // 3. Generate a timestamped filename
-      //    e.g. "scene-<id>-2025-01-21_08-33-59.png"
+      // 3. Ensure username is provided
+      if (!username) {
+        this.logger.error("No username provided");
+        throw new InternalServerErrorException("Username is required");
+      }
+
+      // 4. Generate a timestamped filename with username
       const now = new Date();
       const dateStr = [
         now.getFullYear(),
@@ -47,17 +55,19 @@ export class ScenesController {
         String(now.getMinutes()).padStart(2, "0"),
         String(now.getSeconds()).padStart(2, "0"),
       ].join("-");
-      const fileName = `scene-${id}-${dateStr}_${timeStr}.png`;
+      const sanitizedUsername = username.replace(/[^a-zA-Z0-9_-]/g, "_"); // Sanitize username to avoid invalid characters
+      const fileName = `scene-${id}-${sanitizedUsername}-${dateStr}_${timeStr}.png`;
 
-      // 4. Write the uploaded PNG to disk
+      // 5. Write the uploaded PNG to disk
       const uploadedFilePath = join(exportDir, fileName);
       await writeFile(uploadedFilePath, imageFile.buffer);
-      this.logger.log(`User-uploaded PNG saved at ${uploadedFilePath}`);
+      this.logger.log(`User-uploaded PNG saved at ${uploadedFilePath} by ${username}`);
 
-      // 5. Return success response
+      // 6. Return success response
       return {
         id,
         message: "PNG saved successfully",
+        username,
         filePath: uploadedFilePath,
       };
     } catch (error) {

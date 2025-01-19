@@ -12,7 +12,7 @@ WORKDIR /app/excalidraw
 RUN yarn install && yarn run build
 
 # Expose the dynamic port for Railway
-EXPOSE 3000 3001 3002
+EXPOSE 3000 3001 3002 5000
 
 # Start the `excalidraw` service
 CMD ["yarn", "start"]

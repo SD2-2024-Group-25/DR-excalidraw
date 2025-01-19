@@ -1,18 +1,31 @@
-# Base image
-FROM node:18
+# Stage 1: Build
+FROM node:18 AS build
 
-# Set working directory
-WORKDIR /app
+# Set the working directory
+WORKDIR /opt/node_app
 
-# Copy the `excalidraw` project into the container
-COPY ./excalidraw ./excalidraw
+# Copy the dependency files from the `excalidraw` subdirectory
+COPY excalidraw/package.json excalidraw/yarn.lock ./
+RUN yarn install --production --ignore-optional --network-timeout 600000
 
-# Navigate to the `excalidraw` directory, install dependencies, and build the app
-WORKDIR /app/excalidraw
-RUN yarn install && yarn run build
+# Copy the entire `excalidraw` folder
+COPY excalidraw ./excalidraw
 
-# Expose the dynamic port for Railway
-EXPOSE 3000 3001 3002 5000
+# Set the working directory to the `excalidraw-app` subfolder
+WORKDIR /opt/node_app/excalidraw/excalidraw-app
+RUN yarn build:app:docker
 
-# Start the `excalidraw` service
-CMD ["yarn", "start"]
+# Stage 2: Serve with Nginx
+FROM nginx:1.21-alpine
+
+# Copy built files from the build stage
+COPY --from=build /opt/node_app/excalidraw/excalidraw-app/build /usr/share/nginx/html
+
+# Healthcheck to verify the service
+HEALTHCHECK CMD wget -q -O /dev/null http://localhost || exit 1
+
+# Expose port 80
+EXPOSE 80
+
+# Use the default Nginx command
+CMD ["nginx", "-g", "daemon off;"]

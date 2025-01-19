@@ -1,0 +1,20 @@
+# Ignore everything by default
+*
+
+# Allow only specific files and directories needed for the build
+!Dockerfile
+!excalidraw/
+!railway.json
+!README.md
+
+# Inside excalidraw, exclude unnecessary files or directories
+excalidraw/node_modules/
+excalidraw/excalidraw-app/build/
+excalidraw/excalidraw-app/node_modules/
+excalidraw/examples/
+excalidraw/packages/*/node_modules/
+
+# Optionally exclude unnecessary metadata
+.git/
+.gitignore
+

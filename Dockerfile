@@ -4,22 +4,15 @@ FROM node:18
 # Set working directory
 WORKDIR /app
 
-# Copy the entire project into the container
-COPY . .
+# Copy the `excalidraw` project into the container
+COPY ./excalidraw ./excalidraw
 
-# Build each service
-RUN cd excalidraw && yarn install && yarn run build
-RUN cd excalidraw-room && yarn install && yarn run build
-RUN cd excalidraw-storage-backend && npm install && npm run prebuild && npm run build
+# Navigate to the `excalidraw` directory, install dependencies, and build the app
+WORKDIR /app/excalidraw
+RUN yarn install && yarn run build
 
-# Install concurrently globally to run all services together
-RUN npm install -g concurrently
-
-# Expose the ports used by the services (adjust as needed)
+# Expose the dynamic port for Railway
 EXPOSE 3000 3001 3002
 
-# Start all services in parallel
-CMD concurrently \
-  "cd excalidraw && yarn start" \
-  "cd excalidraw-room && yarn start" \
-  "cd excalidraw-storage-backend && npm start"
+# Start the `excalidraw` service
+CMD ["yarn", "start"]

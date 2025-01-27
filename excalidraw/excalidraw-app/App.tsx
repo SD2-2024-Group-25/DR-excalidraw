@@ -439,7 +439,8 @@ const ExcalidrawWrapper = () => {
   }, [excalidrawAPI]);
 
   useEffect(() => {
-    if (!excalidrawAPI || (!isCollabDisabled && !collabAPI)) {
+    // if (!excalidrawAPI || (!isCollabDisabled && !collabAPI)) {
+      if (!excalidrawAPI || !collabAPI) {
       return;
     }
 
@@ -551,7 +552,7 @@ const ExcalidrawWrapper = () => {
       }
       if (
         !document.hidden &&
-        ((collabAPI && !collabAPI.isCollaborating()) || isCollabDisabled)
+          ((collabAPI && !collabAPI.isCollaborating()) )//|| isCollabDisabled)
       ) {
         // don't sync if local state is newer or identical to browser state
         if (isBrowserStorageStateNewer(STORAGE_KEYS.VERSION_DATA_STATE)) {
@@ -637,7 +638,8 @@ const ExcalidrawWrapper = () => {
       );
       clearTimeout(titleTimeout);
     };
-  }, [isCollabDisabled, collabAPI, excalidrawAPI, setLangCode]);
+  }, //[isCollabDisabled,
+      [collabAPI, excalidrawAPI, setLangCode]);
 
   useEffect(() => {
     const unloadHandler = (event: BeforeUnloadEvent) => {
@@ -887,22 +889,22 @@ const ExcalidrawWrapper = () => {
         handleKeyboardGlobally={true}
         autoFocus={true}
         theme={editorTheme}
-        renderTopRightUI={(isMobile) => {
-          if (isMobile || !collabAPI || isCollabDisabled) {
-            return null;
-          }
-          return (
-            <div className="top-right-ui">
-              {collabError.message && <CollabError collabError={collabError} />}
-              <LiveCollaborationTrigger
-                isCollaborating={isCollaborating}
-                onSelect={() =>
-                  setShareDialogState({ isOpen: true, type: "share" })
-                }
-              />
-            </div>
-          );
-        }}
+renderTopRightUI={(isMobile) => {
+  if (isMobile || !collabAPI) { // Removed `isCollabDisabled` check
+    return null;
+  }
+  return (
+    <div className="top-right-ui">
+      {collabError.message && <CollabError collabError={collabError} />}
+      <LiveCollaborationTrigger
+        isCollaborating={isCollaborating}
+        onSelect={() =>
+          setShareDialogState({ isOpen: true, type: "share" })
+        }
+      />
+    </div>
+  );
+}}
         onLinkOpen={(element, event) => {
           if (element.link && isElementLink(element.link)) {
             event.preventDefault();
@@ -913,14 +915,16 @@ const ExcalidrawWrapper = () => {
         <AppMainMenu
           onCollabDialogOpen={onCollabDialogOpen}
           isCollaborating={isCollaborating}
-          isCollabEnabled={!isCollabDisabled}
+          isCollabEnabled={true}
+// isCollabEnabled={!isCollabDisabled}
           theme={appTheme}
           setTheme={(theme) => setAppTheme(theme)}
           refresh={() => forceRefresh((prev) => !prev)}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
-          isCollabEnabled={!isCollabDisabled}
+isCollabEnabled={true}
+          // isCollabEnabled={!isCollabDisabled}
         />
         <OverwriteConfirmDialog>
           <OverwriteConfirmDialog.Actions.ExportToImage />
@@ -958,7 +962,7 @@ const ExcalidrawWrapper = () => {
             setErrorMessage={setErrorMessage}
           />
         )}
-        {excalidrawAPI && !isCollabDisabled && (
+        {excalidrawAPI && (//&& !isCollabDisabled && (
           <Collab excalidrawAPI={excalidrawAPI} />
         )}
 

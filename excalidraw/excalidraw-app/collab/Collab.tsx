@@ -363,6 +363,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (!keepRemoteState) {
       LocalData.fileStorage.reset();
       this.destroySocketClient();
+      this.setActiveRoomLink(null);
     } else if (window.confirm(t("alerts.collabStopOverridePrompt"))) {
       // hack to ensure that we prefer we disregard any new browser state
       // that could have been saved in other tabs while we were collaborating
@@ -959,9 +960,20 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   getUsername = () => this.state.username;
 
+  // send to parent
   setActiveRoomLink = (activeRoomLink: string | null) => {
     this.setState({ activeRoomLink });
     appJotaiStore.set(activeRoomLinkAtom, activeRoomLink);
+
+    const parentOrigin = new URL(window.location.href).origin;
+    window.parent.postMessage(
+      {
+        type: "UPDATE_COLLABORATION_LINK",
+        payload: { link: activeRoomLink }
+      },
+      // TODO: Probbably change this
+      "*"// use parent app's origin
+    );
   };
 
   getActiveRoomLink = () => this.state.activeRoomLink;

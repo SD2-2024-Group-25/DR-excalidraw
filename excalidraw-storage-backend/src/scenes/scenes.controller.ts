@@ -1,78 +1,191 @@
 import {
   Body,
   Controller,
+  Get,
+  Param,
   Post,
+  Res,
   UploadedFile,
   UseInterceptors,
   InternalServerErrorException,
+  NotFoundException,
   Logger,
-} from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
-import { customAlphabet } from "nanoid";
-import { mkdir, writeFile } from "fs/promises";
-import { join } from "path";
+  Query,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import { customAlphabet } from 'nanoid';
+import { StorageService, StorageNamespace } from '../storage/storage.service';
+import * as JSZip from 'jszip';
 
-@Controller("scenes")
+@Controller('scenes')
 export class ScenesController {
   private readonly logger = new Logger(ScenesController.name);
 
-  @Post("save")
-  @UseInterceptors(FileInterceptor("image"))
-  async savePng(
-    @UploadedFile() imageFile: Express.Multer.File,
-    @Body("username") username: string,
-  ) {
-    // Generate numeric ID for the scene
-    const nanoid = customAlphabet("0123456789", 16);
-    const id = nanoid();
+  constructor(private readonly storageService: StorageService) {}
 
-    try {
-      // 1. Ensure output directory
-      const exportDir = join(__dirname, "..", "exports");
-      await mkdir(exportDir, { recursive: true });
+@Post("save")
+@UseInterceptors(FileInterceptor("image"))
+async savePng(
+  @UploadedFile() imageFile: Express.Multer.File,
+  @Body("username") username: string, // Extract 'username' from body
+  @Body("userID") userID: string // Extract 'userID' from body
+) {
+  const nanoid = customAlphabet("0123456789", 16)();
 
-      // 2. If no file was uploaded, return an error or handle it gracefully
-      if (!imageFile) {
-        this.logger.error("No file uploaded");
-        throw new InternalServerErrorException("No PNG file provided");
-      }
+  try {
+    if (!imageFile) throw new InternalServerErrorException("No PNG file provided");
+    if (!username) throw new InternalServerErrorException("Username is required");
 
-      // 3. Ensure username is provided
-      if (!username) {
-        this.logger.error("No username provided");
-        throw new InternalServerErrorException("Username is required");
-      }
+    const sanitizedUsername = username.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const metadata = {
+      id: nanoid,
+      username: sanitizedUsername,
+      userID: userID || "unknown",
+      fileType: imageFile.mimetype,
+      createdAt: new Date().toISOString(),
+    };
 
-      // 4. Generate a timestamped filename with username
-      const now = new Date();
-      const dateStr = [
-        now.getFullYear(),
-        String(now.getMonth() + 1).padStart(2, "0"),
-        String(now.getDate()).padStart(2, "0"),
-      ].join("-");
-      const timeStr = [
-        String(now.getHours()).padStart(2, "0"),
-        String(now.getMinutes()).padStart(2, "0"),
-        String(now.getSeconds()).padStart(2, "0"),
-      ].join("-");
-      const sanitizedUsername = username.replace(/[^a-zA-Z0-9_-]/g, "_"); // Sanitize username to avoid invalid characters
-      const fileName = `scene-${id}-${sanitizedUsername}-${dateStr}_${timeStr}.png`;
+    await Promise.all([
+      this.storageService.set(`${nanoid}-data`, imageFile.buffer, StorageNamespace.SCENES),
+      this.storageService.set(`${nanoid}-meta`, Buffer.from(JSON.stringify(metadata)), StorageNamespace.SCENES),
+    ]);
 
-      // 5. Write the uploaded PNG to disk
-      const uploadedFilePath = join(exportDir, fileName);
-      await writeFile(uploadedFilePath, imageFile.buffer);
-      this.logger.log(`User-uploaded PNG saved at ${uploadedFilePath} by ${username}`);
+    this.logger.log(`Saved PNG with ID ${nanoid} for username ${sanitizedUsername}`);
 
-      // 6. Return success response
-      return {
-        id,
-        message: "PNG saved successfully",
-        username,
-        filePath: uploadedFilePath,
-      };
-    } catch (error) {
-      this.logger.error(`Error saving PNG: ${error.message}`);
-      throw new InternalServerErrorException("Failed to save PNG");
-    }
+    return {
+      id: nanoid,
+      message: "PNG saved successfully",
+      username: sanitizedUsername,
+      userID: userID || "unknown",
+    };
+  } catch (error) {
+    this.logger.error(`Error saving PNG: ${error.message}`);
+    throw new InternalServerErrorException("Failed to save PNG");
   }
+}
+
+@Get("download")
+async downloadAllScenes(@Res() res: Response) {
+  this.logger.log("Preparing to download all scenes...");
+  try {
+    const allKeys = await this.storageService.getKeys(StorageNamespace.SCENES);
+
+    const archive = [];
+    for (const key of allKeys) {
+      if (key.endsWith("-data")) {
+        const id = key.replace("-data", "");
+
+        // Fetch data and metadata
+        const [bufferData, metadataBuffer] = await Promise.all([
+          this.storageService.get(`${id}-data`, StorageNamespace.SCENES),
+          this.storageService.get(`${id}-meta`, StorageNamespace.SCENES),
+        ]);
+
+        if (bufferData && metadataBuffer) {
+          const metadata = JSON.parse(Buffer.from(metadataBuffer.data).toString());
+          archive.push({
+            filename: `${metadata.id}_${metadata.username}.png`,
+            data: Buffer.from(bufferData.data),
+          });
+        }
+      }
+    }
+
+    if (archive.length === 0) {
+      this.logger.warn("No valid scenes to include in the ZIP archive.");
+      throw new NotFoundException("No scenes found.");
+    }
+
+    // Create the ZIP archive
+    const JSZip = require("jszip");
+    const zip = new JSZip();
+
+    archive.forEach(file => {
+      zip.file(file.filename, file.data);
+    });
+
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+
+    // Set response headers and send the ZIP file
+    res.set({
+      "Content-Type": "application/zip",
+      "Content-Disposition": 'attachment; filename="scenes.zip"',
+    });
+    res.send(zipBuffer);
+
+    this.logger.log(`Successfully sent ZIP file containing ${archive.length} scenes.`);
+  } catch (error) {
+    this.logger.error(`Error downloading scenes: ${error.message}`);
+    throw new InternalServerErrorException("Failed to download scenes.");
+  }
+}
+
+@Get(":id")
+async getPng(@Param("id") id: string, @Res() res: Response) {
+  try {
+    // Fetch the image data
+    const bufferData = await this.storageService.get(`${id}-data`, StorageNamespace.SCENES);
+
+    if (!bufferData) {
+      throw new NotFoundException(`Scene ${id} not found`);
+    }
+
+    // Convert the stored data back into a Buffer
+    const buffer = Buffer.from(bufferData.data);
+
+    // Send the image as a response
+    res.set({
+      "Content-Type": "image/png",
+      "Content-Disposition": `inline; filename="scene-${id}.png"`,
+    });
+    res.send(buffer);
+  } catch (error) {
+    this.logger.error(`Error retrieving scene ${id}: ${error.message}`);
+    throw new InternalServerErrorException("Failed to retrieve PNG");
+  }
+}
+
+// scenes.controller.ts
+@Get()
+async getAllScenes() {
+  this.logger.log("Fetching all scenes...");
+  try {
+    const allKeys = await this.storageService.getKeys(StorageNamespace.SCENES);
+
+    const scenes = [];
+    for (const key of allKeys) {
+      if (key.endsWith("-data")) {
+        const id = key.replace("-data", "");
+
+        try {
+          // Fetch both data and metadata
+          const [bufferData, metadataBuffer] = await Promise.all([
+            this.storageService.get(`${id}-data`, StorageNamespace.SCENES),
+            this.storageService.get(`${id}-meta`, StorageNamespace.SCENES),
+          ]);
+
+          if (bufferData && metadataBuffer) {
+            // Convert metadataBuffer to string and parse JSON
+            const metadata = JSON.parse(Buffer.from(metadataBuffer.data).toString());
+
+            scenes.push({
+              id,
+              metadata,
+              image: `data:image/png;base64,${Buffer.from(bufferData.data).toString("base64")}`,
+            });
+          }
+        } catch (error) {
+          this.logger.error(`Error processing scene ${id}: ${error.message}`);
+        }
+      }
+    }
+
+    this.logger.log(`Found ${scenes.length} valid scenes.`);
+    return scenes;
+  } catch (error) {
+    this.logger.error(`Error retrieving all scenes: ${error.message}`);
+    throw new InternalServerErrorException("Failed to retrieve all scenes");
+  }
+}
 }

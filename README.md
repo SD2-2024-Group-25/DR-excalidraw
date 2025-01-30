@@ -72,7 +72,11 @@ You can update the database URI in one of the following ways:
    ```sh
    yarn install
    ```
-3. Start the application:
+3. Build:
+   ```sh
+   yarn build
+   ```
+4. Start the application:
    ```sh
    yarn start
    ```

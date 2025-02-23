@@ -1,25 +1,19 @@
-# Base image
-FROM node:18
+FROM node:18 AS build
 
-# Set working directory
-WORKDIR /app
+WORKDIR /opt/node_app
 
-# Copy the entire project into the container
 COPY . .
 
-# Build each service
-RUN cd excalidraw && yarn install && yarn run build
-RUN cd excalidraw-room && yarn install && yarn run build
-RUN cd excalidraw-storage-backend && npm install && npm run prebuild && npm run build
+# do not ignore optional dependencies:
+# Error: Cannot find module @rollup/rollup-linux-x64-gnu
+RUN yarn --network-timeout 600000
 
-# Install concurrently globally to run all services together
-RUN npm install -g concurrently
+ARG NODE_ENV=production
 
-# Expose the ports used by the services (adjust as needed)
-EXPOSE 3000 3001 3002
+RUN yarn build:app:docker
 
-# Start all services in parallel
-CMD concurrently \
-  "cd excalidraw && yarn start" \
-  "cd excalidraw-room && yarn start" \
-  "cd excalidraw-storage-backend && npm start"
+FROM nginx:1.27-alpine
+
+COPY --from=build /opt/node_app/excalidraw-app/build /usr/share/nginx/html
+
+HEALTHCHECK CMD wget -q -O /dev/null http://localhost || exit 1

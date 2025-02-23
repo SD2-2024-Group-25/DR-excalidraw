@@ -1,25 +1,13 @@
-# Base image
-FROM node:18
+FROM node:12-alpine
 
-# Set working directory
-WORKDIR /app
+WORKDIR /excalidraw-room
 
-# Copy the entire project into the container
-COPY . .
+COPY package.json yarn.lock ./
+RUN yarn
 
-# Build each service
-RUN cd excalidraw && yarn install && yarn run build
-RUN cd excalidraw-room && yarn install && yarn run build
-RUN cd excalidraw-storage-backend && npm install && npm run prebuild && npm run build
+COPY tsconfig.json ./
+COPY src ./src
+RUN yarn build
 
-# Install concurrently globally to run all services together
-RUN npm install -g concurrently
-
-# Expose the ports used by the services (adjust as needed)
-EXPOSE 3000 3001 3002
-
-# Start all services in parallel
-CMD concurrently \
-  "cd excalidraw && yarn start" \
-  "cd excalidraw-room && yarn start" \
-  "cd excalidraw-storage-backend && npm start"
+EXPOSE 80
+CMD ["yarn", "start"]

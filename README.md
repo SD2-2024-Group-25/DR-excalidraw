@@ -1,95 +1,27 @@
-# Excalidraw Setup Guide
+# Example of excalidraw collaboration server
 
-This guide outlines how to set up and run the Excalidraw components, including the storage backend, room server, and Excalidraw itself. 
+Collaboration server for Excalidraw
 
----
+If you need to use cluster mode with pm2. Checkout: https://socket.io/docs/v4/pm2/
 
-## Running `excalidraw-storage-backend`
+If you are not familiar with pm2: https://pm2.keymetrics.io/docs/usage/quick-start/
 
-1. Navigate to the storage backend directory:
-   ```sh
-   cd excalidraw-storage-backend/
-   ```
-2. Install dependencies:
-   ```sh
-   yarn install
-   ```
-3. Start the development server:
-   ```sh
-   yarn start:dev
-   ```
+# Development
 
-### Database Configuration
+- install
 
-By default, the database is configured to use SQLite:
+  ```sh
+  yarn
+  ```
 
-```ts
-const uri = process.env.STORAGE_URI || 'sqlite://local-db.sqlite';
+- run development server
+
+  ```sh
+  yarn start:dev
+  ```
+
+# Start with pm2
+
 ```
-
-**File:** `storage/storage.service.ts`
-
-#### Changing the Database Location
-
-You can update the database URI in one of the following ways:
-
-- Edit `storage/storage.service.ts` directly.
-- Set an environment variable in your shell:
-  ```sh
-  export STORAGE_URI=sqlite://your-db-file.sqlite
-  ```
-- Create a `.env` file in the project root with:
-  ```sh
-  STORAGE_URI=sqlite://local-db.sqlite
-  ```
-
----
-
-## Running `excalidraw-room`
-
-1. Navigate to the room server directory:
-   ```sh
-   cd excalidraw-room/
-   ```
-2. Install dependencies:
-   ```sh
-   yarn install
-   ```
-3. Start the development server:
-   ```sh
-   yarn start:dev
-   ```
-
----
-
-## Running `excalidraw`
-
-1. Navigate to the Excalidraw directory:
-   ```sh
-   cd excalidraw/
-   ```
-2. Install dependencies:
-   ```sh
-   yarn install
-   ```
-3. Build:
-   ```sh
-   yarn build
-   ```
-4. Start the application:
-   ```sh
-   yarn start
-   ```
-
-### Environment Configuration
-
-Ensure that the `.env.development` and `.env.production` files are correctly configured to point to the appropriate services. By default I set it to run runs on port `5000`.
-
----
-
-## Integrating with Dungeon Revealer (DR)
-
-### Branch: `feature/iframe-for-excalidraw-links`
-
-1. Run Excalidraw as usual following the steps above.
-2. Verify that the iframe integration works as expected.
+pm2 start pm2.production.json
+```

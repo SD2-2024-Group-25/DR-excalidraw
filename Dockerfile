@@ -9,7 +9,7 @@ RUN if [ "$CHINA_MIRROR" = "true" ]; then \
     fi
 
 # Install required packages
-RUN apk add --update python3 make g++ curl pkgconf cairo-dev jpeg-dev pango-dev giflib-dev
+RUN apk add --update python3 make g++ curl pkgconf cairo-dev jpeg-dev pango-dev giflib-dev sqlite
 # Optionally configure Yarn registry to use the China mirror
 RUN if [ "$CHINA_MIRROR" = "true" ]; then \
     echo "Enable China Yarn Mirror" && \

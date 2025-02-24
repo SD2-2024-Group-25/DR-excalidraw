@@ -11,9 +11,6 @@ RUN if [ "$CHINA_MIRROR" = "true" ]; then \
 # Install required packages
 RUN apk add --update python3 make g++ curl
 
-# Install yarn globally
-RUN npm install -g yarn
-
 # Optionally configure Yarn registry to use the China mirror
 RUN if [ "$CHINA_MIRROR" = "true" ]; then \
     echo "Enable China Yarn Mirror" && \

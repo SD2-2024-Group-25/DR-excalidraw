@@ -1,95 +1,25 @@
-# Excalidraw Setup Guide
+# excalidraw-storage-backend
 
-This guide outlines how to set up and run the Excalidraw components, including the storage backend, room server, and Excalidraw itself. 
+This is a reimplementation of [excalidraw-json](https://github.com/excalidraw/excalidraw-json) suitable for self hosting you own instance of Excalidraw.
 
----
+It can be used with [kiliandeca/excalidraw-fork](https://gitlab.com/kiliandeca/excalidraw-fork)
 
-## Running `excalidraw-storage-backend`
+[DockerHub kiliandeca/excalidraw-storage-backend](https://hub.docker.com/r/kiliandeca/excalidraw-storage-backend)
 
-1. Navigate to the storage backend directory:
-   ```sh
-   cd excalidraw-storage-backend/
-   ```
-2. Install dependencies:
-   ```sh
-   yarn install
-   ```
-3. Start the development server:
-   ```sh
-   yarn start:dev
-   ```
+Feature:
 
-### Database Configuration
+- Storing scenes: when you export as a link
+- Storing rooms: when you create a live collaboration
+- Storing images: when you export or do a live collaboration of a scene with images
 
-By default, the database is configured to use SQLite:
+It use Keyv as a simple K/V store so you can use the database of your choice.
 
-```ts
-const uri = process.env.STORAGE_URI || 'sqlite://local-db.sqlite';
-```
+## Environement Variables
 
-**File:** `storage/storage.service.ts`
-
-#### Changing the Database Location
-
-You can update the database URI in one of the following ways:
-
-- Edit `storage/storage.service.ts` directly.
-- Set an environment variable in your shell:
-  ```sh
-  export STORAGE_URI=sqlite://your-db-file.sqlite
-  ```
-- Create a `.env` file in the project root with:
-  ```sh
-  STORAGE_URI=sqlite://local-db.sqlite
-  ```
-
----
-
-## Running `excalidraw-room`
-
-1. Navigate to the room server directory:
-   ```sh
-   cd excalidraw-room/
-   ```
-2. Install dependencies:
-   ```sh
-   yarn install
-   ```
-3. Start the development server:
-   ```sh
-   yarn start:dev
-   ```
-
----
-
-## Running `excalidraw`
-
-1. Navigate to the Excalidraw directory:
-   ```sh
-   cd excalidraw/
-   ```
-2. Install dependencies:
-   ```sh
-   yarn install
-   ```
-3. Build:
-   ```sh
-   yarn build
-   ```
-4. Start the application:
-   ```sh
-   yarn start
-   ```
-
-### Environment Configuration
-
-Ensure that the `.env.development` and `.env.production` files are correctly configured to point to the appropriate services. By default I set it to run runs on port `5000`.
-
----
-
-## Integrating with Dungeon Revealer (DR)
-
-### Branch: `feature/iframe-for-excalidraw-links`
-
-1. Run Excalidraw as usual following the steps above.
-2. Verify that the iframe integration works as expected.
+| Name            | Description                                                  | Default value    |
+| --------------- | ------------------------------------------------------------ | ---------------- |
+| `PORT`          | Server listening port                                        | 8080             |
+| `GLOBAL_PREFIX` | API global prefix for every routes                           | `/api/v2`        |
+| `STORAGE_URI`   | [Keyv](https://github.com/jaredwray/keyv) connection string, example: `redis://user:pass@localhost:6379`. Availabe Keyv storage adapter: redis, mongo, postgres and mysql  | `""` (in memory **non-persistent**) |
+| `LOG_LEVEL`     | Log level (`debug`, `verbose`, `log`, `warn`, `error`)       | `warn`           |
+| `BODY_LIMIT`    | Payload size limit for scenes or images                      | `50mb`           |

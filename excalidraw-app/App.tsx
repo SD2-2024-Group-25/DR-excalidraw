@@ -391,7 +391,7 @@ const ExcalidrawWrapper = () => {
       formData.append("userID", userID); // Include userID
 
       // Send the FormData to the server
-      const response = await fetch("http://excalidraw-storage.up.railway.app/api/v2/scenes/", {
+      const response = await fetch("https://tabletoptestbed.live/api/v2/scenes/", {
         method: "POST",
         body: formData,
       });

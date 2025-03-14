@@ -973,7 +973,15 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       },
       // TODO: Probbably change this
       "*"// use parent app's origin
+
     );
+
+    if (this.portal.socket) {
+      this.portal.socket.emit("update-collaboration-link", {
+        link: activeRoomLink,
+      });
+    }
+
   };
 
   getActiveRoomLink = () => this.state.activeRoomLink;

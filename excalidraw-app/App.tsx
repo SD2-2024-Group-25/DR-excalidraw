@@ -406,7 +406,7 @@ const ExcalidrawWrapper = () => {
     }
   };
 
-  const debouncedExportAndSendImage = debounce(exportAndSendImage, 60000); // 1 minute delay
+  const debouncedExportAndSendImage = debounce(exportAndSendImage, 20000); // 20 second delay
   const [, setShareDialogState] = useAtom(shareDialogStateAtom);
   const [collabAPI] = useAtom(collabAPIAtom);
   const [isCollaborating] = useAtomWithInitialValue(isCollaboratingAtom, () => {

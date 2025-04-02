@@ -11,8 +11,10 @@ export enum StorageNamespace {
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
-  private readonly baseDir = path.join(__dirname, '../../uploads'); // Base directory for storage
-
+  //private readonly baseDir = path.join(__dirname, '../../uploads'); // Base directory for storage
+  private readonly baseDir = path.join(
+    '/usr/src/dungeon-revealer/public/research/whiteboard',
+  );
   constructor() {
     Object.values(StorageNamespace).forEach((namespace) => {
       const dirPath = path.join(this.baseDir, namespace);

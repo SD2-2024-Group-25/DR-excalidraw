@@ -21,7 +21,10 @@ import * as JSZip from 'jszip';
 @Controller('scenes')
 export class ScenesController {
   private readonly logger = new Logger(ScenesController.name);
-  private readonly uploadDir = path.join(__dirname, '../../../../new_clone/dungeon-revealer/public/research/whiteboard'); //'../../uploads'); // Define upload directory
+  //private readonly uploadDir = path.join(__dirname, '../../uploads'); // Define upload directory
+  private readonly uploadDir = path.join(
+    '/usr/src/dungeon-revealer/public/research/whiteboard',
+  );
 
   constructor() {
     if (!fs.existsSync(this.uploadDir)) {
@@ -128,87 +131,65 @@ export class ScenesController {
     }
   }
 
-@Get(':id')
-async getPng(@Param('id') id: string, @Res() res: Response) {
-  this.logger.log(`🔎 Looking for scene: ${id}`);
+  @Get(':id')
+  async getPng(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const imagePath = path.join(this.uploadDir, `${id}.png`);
 
-  const files = fs.readdirSync(this.uploadDir); // Get all files in uploads folder
-  this.logger.log(`📂 Files in upload directory: ${files.join(', ')}`); // Log files
-  
-  try {
-    // Check for a file that contains the ID
-    const matchingFile = files.find(file => file.includes(id) && file.endsWith('.png'));
+      if (!fs.existsSync(imagePath)) {
+        throw new NotFoundException(`Scene ${id} not found`);
+      }
 
-    if (!matchingFile) {
-      this.logger.error(`❌ Scene ${id} not found.`);
-      throw new NotFoundException(`Scene ${id} not found`);
+      const imageBuffer = fs.readFileSync(imagePath);
+
+      res.set({
+        'Content-Type': 'image/png',
+        'Content-Disposition': `inline; filename="scene-${id}.png"`,
+      });
+      res.send(imageBuffer);
+    } catch (error) {
+      this.logger.error(`Error retrieving scene ${id}: ${error.message}`);
+      throw new InternalServerErrorException('Failed to retrieve PNG');
     }
-
-    const imagePath = path.join(this.uploadDir, matchingFile);
-    const imageBuffer = fs.readFileSync(imagePath);
-
-    this.logger.log(`✅ Found and returning file: ${matchingFile}`);
-
-    res.set({
-      'Content-Type': 'image/png',
-      'Content-Disposition': `inline; filename="${matchingFile}"`,
-    });
-    res.send(imageBuffer);
-  } catch (error) {
-    this.logger.error(`🚨 Error retrieving scene ${id}: ${error.message}`);
-    throw new InternalServerErrorException('Failed to retrieve PNG');
   }
-}
 
   @Get()
-async getAllScenes() {
-  this.logger.log('Fetching all scenes...');
-  
-  try {
-    const files = fs.readdirSync(this.uploadDir);
-    this.logger.log(`📂 Detected files: ${files.join(', ')}`);
+  async getAllScenes() {
+    this.logger.log('Fetching all scenes...');
+    try {
+      const files = fs.readdirSync(this.uploadDir);
+      const scenes = [];
 
-    const scenes = [];
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          try {
+            const metadataPath = path.join(this.uploadDir, file);
+            const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+            const imagePath = path.join(this.uploadDir, `${metadata.id}.png`);
 
-    for (const file of files) {
-      if (file.endsWith('.json')) {
-        try {
-          const metadataPath = path.join(this.uploadDir, file);
-          this.logger.log(`📄 Processing metadata file: ${metadataPath}`);
-
-          const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
-
-          // 🔹 Find a PNG file that contains this ID
-          const matchingFile = files.find(f => f.includes(metadata.id) && f.endsWith('.png'));
-
-          if (!matchingFile) {
-            this.logger.warn(`⚠️ Image file missing for scene ID: ${metadata.id}`);
-            continue; // Skip this scene if no matching image
+            if (fs.existsSync(imagePath)) {
+              const imageBuffer = fs.readFileSync(imagePath);
+              scenes.push({
+                id: metadata.id,
+                metadata,
+                image: `data:image/png;base64,${imageBuffer.toString(
+                  'base64',
+                )}`,
+              });
+            }
+          } catch (error) {
+            this.logger.error(
+              `Error processing scene file ${file}: ${error.message}`,
+            );
           }
-
-          const imagePath = path.join(this.uploadDir, matchingFile);
-          const imageBuffer = fs.readFileSync(imagePath);
-
-          this.logger.log(`✅ Found and returning scene: ${matchingFile}`);
-
-          scenes.push({
-            id: metadata.id,
-            metadata,
-            image: `data:image/png;base64,${imageBuffer.toString('base64')}`,
-          });
-
-        } catch (error) {
-          this.logger.error(`🚨 Error processing scene file ${file}: ${error.message}`);
         }
       }
+
+      this.logger.log(`Found ${scenes.length} valid scenes.`);
+      return scenes;
+    } catch (error) {
+      this.logger.error(`Error retrieving all scenes: ${error.message}`);
+      throw new InternalServerErrorException('Failed to retrieve all scenes');
     }
-
-    this.logger.log(`📊 Found ${scenes.length} valid scenes.`);
-    return scenes;
-
-  } catch (error) {
-    this.logger.error(`❌ Error retrieving all scenes: ${error.message}`);
-    throw new InternalServerErrorException('Failed to retrieve all scenes');
   }
-}
 }

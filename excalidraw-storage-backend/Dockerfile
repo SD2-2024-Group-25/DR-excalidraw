@@ -25,9 +25,9 @@ COPY package-lock.json .
 RUN npm install
 
 COPY . .
-RUN npm ci --prod
-RUN npx nest build
-
+#RUN npm ci --prod
+#RUN npx nest build
+RUN npm run build
 
 FROM node:20-alpine
 

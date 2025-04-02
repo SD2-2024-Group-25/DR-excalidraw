@@ -1,3 +1,4 @@
+import { exportToBlob } from "../packages/utils/export"; // Adjust the import path
 import polyfill from "../packages/excalidraw/polyfill";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { trackEvent } from "../packages/excalidraw/analytics";
@@ -356,7 +357,56 @@ const ExcalidrawWrapper = () => {
 
   const [excalidrawAPI, excalidrawRefCallback] =
     useCallbackRefState<ExcalidrawImperativeAPI>();
+  const exportAndSendImage = async (
+    elements: readonly OrderedExcalidrawElement[],
+    appState: AppState,
+    files: BinaryFiles,
+  ) => {
+    try {
+      // Parse query parameters from the URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const username = searchParams.get("username") || "COLLAB";
+      const userID = searchParams.get("userID") || "COLLAB";
 
+      // Export the canvas to a Blob (PNG image)
+      const blob = await exportToBlob({
+        elements,
+        appState,
+        files,
+        mimeType: "image/png", // Specify the image format
+        quality: 0.8, // Adjust quality for JPEG if needed
+      });
+
+      if (!blob) {
+        throw new Error("Failed to export the canvas as a Blob");
+      }
+
+      // Create FormData to send the Blob
+      const formData = new FormData();
+      formData.append("image", blob, "exported-image.png"); // Append the Blob with a file name
+      formData.append("elements", JSON.stringify(elements));
+      formData.append("appState", JSON.stringify(appState));
+      formData.append("files", JSON.stringify(files || {}));
+      formData.append("username", username); // Include username
+      formData.append("userID", userID); // Include userID
+
+      // Send the FormData to the server
+      const response = await fetch("https://tabletoptestbed.live/api/v2/scenes/save", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorMessage = await response.text();
+        console.error("Server error:", errorMessage);
+        throw new Error("Failed to send the exported image to the server");
+      }
+    } catch (error) {
+      console.error("Error exporting and sending image:", error);
+    }
+  };
+
+  const debouncedExportAndSendImage = debounce(exportAndSendImage, 20000); // 20 second delay
   const [, setShareDialogState] = useAtom(shareDialogStateAtom);
   const [collabAPI] = useAtom(collabAPIAtom);
   const [isCollaborating] = useAtomWithInitialValue(isCollaboratingAtom, () => {
@@ -389,7 +439,8 @@ const ExcalidrawWrapper = () => {
   }, [excalidrawAPI]);
 
   useEffect(() => {
-    if (!excalidrawAPI || (!isCollabDisabled && !collabAPI)) {
+    // if (!excalidrawAPI || (!isCollabDisabled && !collabAPI)) {
+      if (!excalidrawAPI || !collabAPI) {
       return;
     }
 
@@ -501,7 +552,7 @@ const ExcalidrawWrapper = () => {
       }
       if (
         !document.hidden &&
-        ((collabAPI && !collabAPI.isCollaborating()) || isCollabDisabled)
+          ((collabAPI && !collabAPI.isCollaborating()) )//|| isCollabDisabled)
       ) {
         // don't sync if local state is newer or identical to browser state
         if (isBrowserStorageStateNewer(STORAGE_KEYS.VERSION_DATA_STATE)) {
@@ -587,7 +638,8 @@ const ExcalidrawWrapper = () => {
       );
       clearTimeout(titleTimeout);
     };
-  }, [isCollabDisabled, collabAPI, excalidrawAPI, setLangCode]);
+  }, //[isCollabDisabled,
+      [collabAPI, excalidrawAPI, setLangCode]);
 
   useEffect(() => {
     const unloadHandler = (event: BeforeUnloadEvent) => {
@@ -616,6 +668,10 @@ const ExcalidrawWrapper = () => {
     if (collabAPI?.isCollaborating()) {
       collabAPI.syncElements(elements);
     }
+
+    // debouncedSaveToServer(elements, appState, files);
+    const nonDeleted = elements.filter((el) => !el.isDeleted);
+    debouncedExportAndSendImage(nonDeleted, appState, files);
 
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time
@@ -833,22 +889,22 @@ const ExcalidrawWrapper = () => {
         handleKeyboardGlobally={true}
         autoFocus={true}
         theme={editorTheme}
-        renderTopRightUI={(isMobile) => {
-          if (isMobile || !collabAPI || isCollabDisabled) {
-            return null;
-          }
-          return (
-            <div className="top-right-ui">
-              {collabError.message && <CollabError collabError={collabError} />}
-              <LiveCollaborationTrigger
-                isCollaborating={isCollaborating}
-                onSelect={() =>
-                  setShareDialogState({ isOpen: true, type: "share" })
-                }
-              />
-            </div>
-          );
-        }}
+renderTopRightUI={(isMobile) => {
+  if (isMobile || !collabAPI) { // Removed `isCollabDisabled` check
+    return null;
+  }
+  return (
+    <div className="top-right-ui">
+      {collabError.message && <CollabError collabError={collabError} />}
+      <LiveCollaborationTrigger
+        isCollaborating={isCollaborating}
+        onSelect={() =>
+          setShareDialogState({ isOpen: true, type: "share" })
+        }
+      />
+    </div>
+  );
+}}
         onLinkOpen={(element, event) => {
           if (element.link && isElementLink(element.link)) {
             event.preventDefault();
@@ -859,14 +915,16 @@ const ExcalidrawWrapper = () => {
         <AppMainMenu
           onCollabDialogOpen={onCollabDialogOpen}
           isCollaborating={isCollaborating}
-          isCollabEnabled={!isCollabDisabled}
+          isCollabEnabled={true}
+// isCollabEnabled={!isCollabDisabled}
           theme={appTheme}
           setTheme={(theme) => setAppTheme(theme)}
           refresh={() => forceRefresh((prev) => !prev)}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
-          isCollabEnabled={!isCollabDisabled}
+isCollabEnabled={true}
+          // isCollabEnabled={!isCollabDisabled}
         />
         <OverwriteConfirmDialog>
           <OverwriteConfirmDialog.Actions.ExportToImage />
@@ -904,7 +962,7 @@ const ExcalidrawWrapper = () => {
             setErrorMessage={setErrorMessage}
           />
         )}
-        {excalidrawAPI && !isCollabDisabled && (
+        {excalidrawAPI && (//&& !isCollabDisabled && (
           <Collab excalidrawAPI={excalidrawAPI} />
         )}
 

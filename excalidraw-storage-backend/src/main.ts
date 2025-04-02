@@ -12,10 +12,15 @@ async function bootstrap() {
     : 'log';
 
   const app = await NestFactory.create(AppModule, {
-    cors: true,
+    //cors: true,
     logger: [logLevel],
   });
-
+  app.enableCors({
+    origin: '*', // Allow all origins (can be restricted to specific domains)
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    allowedHeaders: "Content-Type,Authorization",
+    credentials: true, // Enable if using authentication
+  });
   app.setGlobalPrefix(process.env.GLOBAL_PREFIX ?? '/api/v2');
 
   await app.listen(process.env.PORT ?? 8080);

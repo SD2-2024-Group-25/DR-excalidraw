@@ -3,7 +3,7 @@ FROM node:18
 WORKDIR /usr/src/excalidraw-room
 
 # Copy dependencies first for better caching
-COPY package.json 
+COPY package.json package-lock.json
 RUN npm install
 
 # Copy the rest of the application files
